@@ -1,0 +1,4 @@
+-- Add a "converted" status so a devis can be marked as converted to facture
+-- (kept, not deleted, for audit trail — invoices already link back via
+-- converted_from_quotation_id).
+ALTER TYPE public.doc_status ADD VALUE IF NOT EXISTS 'converted';
