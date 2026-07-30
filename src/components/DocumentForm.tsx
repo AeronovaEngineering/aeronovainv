@@ -81,30 +81,15 @@ export function DocumentForm({
     queryKey: [table, documentId],
     enabled: !!documentId,
     queryFn: async () => {
-      console.log("🔍 Fetching document:", table, documentId);
-      try {
-        const [docResult, itemsResult] = await Promise.all([
-          supabase.from(table).select("*").eq("id", documentId!).maybeSingle(),
-          supabase.from(itemsTable).select("*").eq(fk as never, documentId!).order("position"),
-        ]);
-        
-        console.log("🔍 Doc result:", docResult);
-        console.log("🔍 Items result:", itemsResult);
-        
-        if (docResult.error) {
-          console.error("🔴 Doc error:", docResult.error);
-          throw docResult.error;
-        }
-        if (itemsResult.error) {
-          console.error("🔴 Items error:", itemsResult.error);
-          throw itemsResult.error;
-        }
-        
-        return { doc: docResult.data, items: itemsResult.data ?? [] };
-      } catch (err) {
-        console.error("🔴 Query failed:", err);
-        throw err;
-      }
+      const [docResult, itemsResult] = await Promise.all([
+        supabase.from(table).select("*").eq("id", documentId!).maybeSingle(),
+        supabase.from(itemsTable).select("*").eq(fk as never, documentId!).order("position"),
+      ]);
+
+      if (docResult.error) throw docResult.error;
+      if (itemsResult.error) throw itemsResult.error;
+
+      return { doc: docResult.data, items: itemsResult.data ?? [] };
     },
   });
 
@@ -188,16 +173,6 @@ export function DocumentForm({
   const client = newClientMode
     ? { id: "", company_name: newClient.company_name, address: newClient.address, telephone: newClient.telephone, matricule_fiscal: newClient.matricule_fiscal }
     : existingClient;
-
-  console.log("🔍 Preview conditions:", {
-    savedDoc: savedDoc,
-    settingsData: !!settingsQ.data,
-    client: client,
-    clientId: form.client_id,
-    newClientMode: newClientMode,
-    hasClient: !!client,
-    renderPreview: renderPreview
-  });
 
   function updateItem(i: number, patch: Partial<Item>) {
     setForm((f) => {
@@ -364,8 +339,7 @@ export function DocumentForm({
         .update({ status: "converted" as any })
         .eq("id", savedDoc.id);
       if (updateError) {
-        console.error("Failed to update quotation status:", updateError);
-        // Don't throw, just log - the invoice was created successfully
+        // The invoice was created successfully; failing to flag the quotation isn't fatal
       }
       
       toast.success("Facture créée");
@@ -387,8 +361,6 @@ export function DocumentForm({
     setForm((f) => ({ ...f, status }));
     toast.success("Statut mis à jour");
   }
-
-  console.log("🔍 printRef:", printRef.current);
 
   async function downloadPdf() {
     if (!savedDoc) {
@@ -412,39 +384,11 @@ export function DocumentForm({
       const prefix = kind === "quotation" ? "Devis" : "Facture";
       await generatePaginatedPdf(printRef.current, `${prefix}-${savedDoc.number}-${savedDoc.year}.pdf`);
     } catch (e) {
-      console.error("PDF generation error:", e);
       toast.error(e instanceof Error ? e.message : "Erreur lors de la génération du PDF");
     } finally {
       setGeneratingPdf(false);
     }
   }
-  // Debug error blocks
-  if (settingsQ.error) {
-    console.error("🔴 settingsQ.error:", settingsQ.error);
-    return <div style={{padding:20, border:'3px solid red', background:'#fee'}}>
-      <h3>🔴 DEBUG: settingsQ Error</h3>
-      <pre>{JSON.stringify(settingsQ.error, null, 2)}</pre>
-    </div>;
-  }
-  if (existingQ.error) {
-    console.error("🔴 existingQ.error:", existingQ.error);
-    return <div style={{padding:20, border:'3px solid red', background:'#fee'}}>
-      <h3>🔴 DEBUG: existingQ Error</h3>
-      <pre>{JSON.stringify(existingQ.error, null, 2)}</pre>
-    </div>;
-  }
-  if (clientsQ.error) {
-    console.error("🔴 clientsQ.error:", clientsQ.error);
-    return <div style={{padding:20, border:'3px solid red', background:'#fee'}}>
-      <h3>🔴 DEBUG: clientsQ Error</h3>
-      <pre>{JSON.stringify(clientsQ.error, null, 2)}</pre>
-    </div>;
-  }
-
-  // Debug - Log all query states
-  console.log("🔍 settingsQ:", { isLoading: settingsQ.isLoading, error: settingsQ.error, data: settingsQ.data });
-  console.log("🔍 existingQ:", { isLoading: existingQ.isLoading, error: existingQ.error, data: existingQ.data });
-  console.log("🔍 clientsQ:", { isLoading: clientsQ.isLoading, error: clientsQ.error, data: clientsQ.data?.length });
 
   if (settingsQ.isLoading || (documentId && existingQ.isLoading)) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
@@ -631,21 +575,6 @@ export function DocumentForm({
         </CardContent>
       </Card>
 
-      {/* DEBUG - Check what's preventing the preview */}
-      <div className="mt-4 p-4 border-2 border-blue-500 bg-blue-50 text-blue-700 no-print">
-        <h4>🔍 Debug Info</h4>
-        <ul>
-          <li>savedDoc: {savedDoc ? `✅ ${savedDoc.number}-${savedDoc.year}` : '❌ null'}</li>
-          <li>settingsQ.data: {settingsQ.data ? '✅' : '❌'}</li>
-          <li>client: {client ? `✅ ${client.company_name}` : '❌ null'}</li>
-          <li>client_id: {form.client_id || '❌ empty'}</li>
-          <li>newClientMode: {String(newClientMode)}</li>
-          <li>items count: {form.items.length}</li>
-          <li>renderPreview: {renderPreview ? '✅ true' : '❌ false'}</li>
-        </ul>
-      </div>
-
-      {/* Show *why* the preview is missing instead of nothing */}
       {renderPreview && savedDoc && settingsQ.data && !client && (
         <div className="mt-4 p-4 border-2 border-amber-500 bg-amber-50 text-amber-700 rounded-md no-print">
           Impossible de charger le client associé à ce document (client_id: {form.client_id || "vide"}).
