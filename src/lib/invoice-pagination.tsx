@@ -15,30 +15,39 @@ export function useRowHeights(items: Item[]) {
     // Reset measurements when items change
     setHeights(null);
     rowRefs.current = new Map();
+    let cancelled = false;
 
-    // Let the DOM render, then measure
-    const timer = setTimeout(() => {
-      if (!containerRef.current) return;
+    function measure() {
+      if (cancelled || !containerRef.current) return;
 
       const measured: number[] = [];
-      let allMeasured = true;
-
       for (let i = 0; i < items.length; i++) {
         const row = rowRefs.current.get(i);
-        if (row) {
-          measured.push(row.getBoundingClientRect().height);
-        } else {
-          allMeasured = false;
-          break;
+        if (!row) {
+          // Rows not mounted yet: retry next frame instead of giving up silently.
+          requestAnimationFrame(measure);
+          return;
         }
+        measured.push(row.getBoundingClientRect().height);
       }
+      if (!cancelled) setHeights(measured);
+    }
 
-      if (allMeasured && measured.length === items.length) {
-        setHeights(measured);
-      }
-    }, 50);
+    // Wait for web fonts to actually be loaded before measuring — otherwise
+    // row heights are measured against fallback fonts and the pagination
+    // (and therefore the pages array PaginatedInvoiceTemplate's ref depends
+    // on) can end up wrong or, in edge cases, never settle.
+    if (items.length === 0) {
+      setHeights([]);
+    } else if (document.fonts?.ready) {
+      document.fonts.ready.then(() => requestAnimationFrame(measure));
+    } else {
+      requestAnimationFrame(measure);
+    }
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+    };
   }, [items]);
 
   // Hidden renderer that mirrors the table styles exactly

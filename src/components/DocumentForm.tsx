@@ -391,7 +391,21 @@ export function DocumentForm({
   console.log("🔍 printRef:", printRef.current);
 
   async function downloadPdf() {
-    if (!printRef.current || !savedDoc) return;
+    if (!savedDoc) {
+      toast.error("Enregistrez d'abord le document avant de télécharger le PDF");
+      return;
+    }
+    if (!printRef.current) {
+      toast.error("L'aperçu n'est pas encore prêt, réessayez dans un instant");
+      return;
+    }
+    // printRef.current wraps page <div>s only once PaginatedInvoiceTemplate
+    // has finished measuring row heights (see useRowHeights). If it's still
+    // in its "measuring" phase, .children won't contain real page divs yet.
+    if (printRef.current.children.length === 0) {
+      toast.error("Le document est encore en cours de préparation, réessayez dans un instant");
+      return;
+    }
     setGeneratingPdf(true);
     try {
       const { generatePaginatedPdf } = await import("@/lib/exporttopdf");
@@ -399,7 +413,7 @@ export function DocumentForm({
       await generatePaginatedPdf(printRef.current, `${prefix}-${savedDoc.number}-${savedDoc.year}.pdf`);
     } catch (e) {
       console.error("PDF generation error:", e);
-      toast.error("Erreur lors de la génération du PDF");
+      toast.error(e instanceof Error ? e.message : "Erreur lors de la génération du PDF");
     } finally {
       setGeneratingPdf(false);
     }
@@ -630,6 +644,14 @@ export function DocumentForm({
           <li>renderPreview: {renderPreview ? '✅ true' : '❌ false'}</li>
         </ul>
       </div>
+
+      {/* Show *why* the preview is missing instead of nothing */}
+      {renderPreview && savedDoc && settingsQ.data && !client && (
+        <div className="mt-4 p-4 border-2 border-amber-500 bg-amber-50 text-amber-700 rounded-md no-print">
+          Impossible de charger le client associé à ce document (client_id: {form.client_id || "vide"}).
+          Vérifiez que le client existe toujours et que vous avez les droits pour le lire.
+        </div>
+      )}
 
       {/* Printable preview - only renders in browser after hydration */}
       {renderPreview && savedDoc && settingsQ.data && client && (

@@ -55,9 +55,10 @@ export async function generatePaginatedPdf(
     (child) => child.tagName === "DIV"
   ) as HTMLDivElement[];
 
-  if (pageDivs.length === 0) {
-    console.error("No page divs found in container");
-    return;
+ if (pageDivs.length === 0) {
+    throw new Error(
+      "Le document n'a pas encore fini de se préparer (aucune page trouvée). Réessayez dans un instant."
+    );
   }
 
   const pdf = new jsPDF("p", "mm", "a4");
