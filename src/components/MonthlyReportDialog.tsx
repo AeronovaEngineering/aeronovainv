@@ -6,8 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Download, Loader2 } from "lucide-react";
-import { MonthlyReportTemplate, type ReportRow } from "@/components/MonthlyReportTemplate"
-import { exportReportToPdf } from "@/lib/exporttopdf";
+import { MonthlyReportTemplate, type ReportRow } from "@/components/MonthlyReportTemplate";
+import { generatePaginatedPdf } from "@/lib/exporttopdf";
 
 function monthBounds(d = new Date()) {
   const start = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -53,9 +53,9 @@ export function MonthlyReportDialog() {
   const [from, setFrom] = useState(defaults.start);
   const [to, setTo] = useState(defaults.end);
   const [reportData, setReportData] = useState<ReportData | null>(null);
-  const settingsQ = useCompanySettings();
   const reportRef = useRef<HTMLDivElement>(null);
-
+  const settingsQ = useCompanySettings();
+  
   // Once the off-screen report is mounted with fresh data, capture it to a
   // PDF and trigger a download — no browser print dialog, no page bleed-in.
   useEffect(() => {
@@ -67,7 +67,21 @@ export function MonthlyReportDialog() {
     const timer = window.setTimeout(async () => {
       if (cancelled || !reportRef.current) return;
       try {
-        await exportReportToPdf(reportRef.current, `rapport-${reportData.periodLabel}.pdf`);
+        // Wait for pagination to settle (rows measured and pages rendered)
+        const container = reportRef.current;
+        await new Promise((resolve) => {
+          // Check if pagination is ready
+          const checkReady = () => {
+            if (container.children.length > 0) {
+              resolve(true);
+            } else {
+              requestAnimationFrame(checkReady);
+            }
+          };
+          checkReady();
+        });
+
+        await generatePaginatedPdf(container, `rapport-${reportData.periodLabel}.pdf`);
       } catch (e) {
         console.error(e);
         alert("Erreur lors de l'export du PDF.");
@@ -77,7 +91,7 @@ export function MonthlyReportDialog() {
           setReportData(null); // unmount the off-screen report, we're done with it
         }
       }
-    }, 150);
+    }, 200);
 
     return () => {
       cancelled = true;
@@ -183,7 +197,7 @@ export function MonthlyReportDialog() {
       </Dialog>
 
       {/* Off-screen report — never visible, only used as a source for the
-          canvas capture in exportReportToPdf. Not printed, not shown. */}
+          canvas capture in generatePaginatedPdf. Not printed, not shown. */}
       {reportData && (
         <div style={{ position: "fixed", top: -99999, left: -99999, zIndex: -1 }}>
           <MonthlyReportTemplate ref={reportRef} {...reportData} />
