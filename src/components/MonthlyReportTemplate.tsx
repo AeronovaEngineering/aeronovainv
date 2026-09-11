@@ -374,17 +374,88 @@ function SyntheseFinanciere({
 // ============================================
 // 4. PAGE TEMPLATE
 // ============================================
+// Footer is ALWAYS the same band, on every page, at the same fixed height.
+// It never toggles between a "simple" and a "full" variant anymore — that
+// toggle was the source of the page-budget mismatch that caused overlap.
+// Pulled out as its own component so the measurement hook below can render
+// an identical hidden copy and find out its REAL height instead of guessing.
+function FooterBand({
+  settings,
+  pageNumber,
+  totalPages,
+}: {
+  settings: Settings;
+  pageNumber: number;
+  totalPages: number;
+}) {
+  return (
+    <div style={{ breakInside: "avoid", flexShrink: 0 }}>
+      <div
+        style={{
+          border: "1px solid #000000",
+          display: "grid",
+          gridTemplateColumns: "1.4fr 1.4fr 1fr 1.2fr",
+          fontSize: "8pt",
+        }}
+      >
+        <FooterCell>
+          <div style={{ fontWeight: 700, color: "#000000", marginBottom: 2, fontSize: "8.5pt" }}>
+            Adresse
+          </div>
+          <div style={{ color: "#000000" }}>{settings.footer_address}</div>
+        </FooterCell>
+        <FooterCell>
+          <div style={{ fontWeight: 700, color: "#000000", marginBottom: 2, fontSize: "8.5pt" }}>
+            Contact
+          </div>
+          <div style={{ color: "#000000" }}>Tél: {settings.phone}</div>
+          <div style={{ color: "#000000" }}>Email: {settings.email}</div>
+        </FooterCell>
+        <FooterCell>
+          <div style={{ fontWeight: 700, color: "#000000", marginBottom: 2, fontSize: "8.5pt" }}>
+            Registre
+          </div>
+          <div style={{ color: "#000000" }}>RC: {settings.rc}</div>
+          <div style={{ color: "#000000" }}>MF: {settings.matricule_fiscal}</div>
+        </FooterCell>
+        <FooterCell>
+          <div style={{ fontWeight: 700, color: "#000000", marginBottom: 2, fontSize: "8.5pt" }}>
+            Banque
+          </div>
+          <div style={{ color: "#000000", fontFamily: "monospace", fontSize: "7.5pt" }}>
+            {settings.ccb}
+          </div>
+        </FooterCell>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: "7pt",
+          color: "#000000",
+          marginTop: 6,
+          borderTop: "1px solid #000000",
+          paddingTop: 6,
+        }}
+      >
+        <span>© {new Date().getFullYear()} {settings.company_name} — Tous droits réservés</span>
+        <span>Document généré automatiquement</span>
+        <span style={{ fontFamily: "monospace" }}>Page {pageNumber} / {totalPages}</span>
+      </div>
+    </div>
+  );
+}
+
 function ReportPage({
   children,
   pageNumber,
   totalPages,
-  showFooterBand = false,
   settings,
 }: {
   children: React.ReactNode;
   pageNumber: number;
   totalPages: number;
-  showFooterBand?: boolean;
   settings: Settings;
 }) {
   return (
@@ -405,82 +476,13 @@ function ReportPage({
         overflow: "hidden",
       }}
     >
-      <div style={{ flex: "1 1 auto", minHeight: 0 }}>
+      <div style={{ flex: "1 1 auto", minHeight: 0, overflow: "hidden" }}>
         {children}
       </div>
 
       <div style={{ flex: "1 1 auto", minHeight: "4mm" }} />
 
-      {showFooterBand ? (
-        <div style={{ breakInside: "avoid", flexShrink: 0 }}>
-          <div
-            style={{
-              border: "1px solid #000000",
-              display: "grid",
-              gridTemplateColumns: "1.4fr 1.4fr 1fr 1.2fr",
-              fontSize: "8pt",
-            }}
-          >
-            <FooterCell>
-              <div style={{ fontWeight: 700, color: "#000000", marginBottom: 2, fontSize: "8.5pt" }}>
-                Adresse
-              </div>
-              <div style={{ color: "#000000" }}>{settings.footer_address}</div>
-            </FooterCell>
-            <FooterCell>
-              <div style={{ fontWeight: 700, color: "#000000", marginBottom: 2, fontSize: "8.5pt" }}>
-                Contact
-              </div>
-              <div style={{ color: "#000000" }}>Tél: {settings.phone}</div>
-              <div style={{ color: "#000000" }}>Email: {settings.email}</div>
-            </FooterCell>
-            <FooterCell>
-              <div style={{ fontWeight: 700, color: "#000000", marginBottom: 2, fontSize: "8.5pt" }}>
-                Registre
-              </div>
-              <div style={{ color: "#000000" }}>RC: {settings.rc}</div>
-              <div style={{ color: "#000000" }}>MF: {settings.matricule_fiscal}</div>
-            </FooterCell>
-            <FooterCell>
-              <div style={{ fontWeight: 700, color: "#000000", marginBottom: 2, fontSize: "8.5pt" }}>
-                Banque
-              </div>
-              <div style={{ color: "#000000", fontFamily: "monospace", fontSize: "7.5pt" }}>
-                {settings.ccb}
-              </div>
-            </FooterCell>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "7pt",
-              color: "#000000",
-              marginTop: 6,
-              borderTop: "1px solid #000000",
-              paddingTop: 6,
-            }}
-          >
-            <span>© {new Date().getFullYear()} {settings.company_name} — Tous droits réservés</span>
-            <span>Document généré automatiquement</span>
-            <span style={{ fontFamily: "monospace" }}>v1.0</span>
-          </div>
-        </div>
-      ) : (
-        <div
-          style={{
-            flexShrink: 0,
-            textAlign: "center",
-            fontSize: "9pt",
-            color: "#000000",
-            paddingTop: "4mm",
-            borderTop: "1px solid #000000",
-          }}
-        >
-          Page {pageNumber} / {totalPages}
-        </div>
-      )}
+      <FooterBand settings={settings} pageNumber={pageNumber} totalPages={totalPages} />
     </div>
   );
 }
@@ -685,28 +687,205 @@ function useRowHeights(rows: ReportRow[]) {
 }
 
 // ============================================
+// 6b. HOOK DE MESURE DU "CHROME" (header, titres, lignes de
+// tête/sous-total, footer, synthèse) — mesure réelle au lieu de
+// constantes devinées. Les anciennes valeurs CHROME_HEIGHTS_MM étaient
+// des estimations approximatives (souvent 2x trop généreuses), ce qui
+// gaspillait de la place et forçait des sauts de page inutiles.
+// ============================================
+type ChromeHeights = {
+  page1Overhead: number;
+  sectionTitle: number;
+  tableHeaderRow: number;
+  subtotalRow: number;
+  footerBand: number;
+  syntheseBlock: number;
+};
+
+function useChromeHeights(params: {
+  settings: Settings;
+  periodLabel: string;
+  reportNumber: string;
+  currentDate: string;
+  salesTotal: number;
+  purchasesTotal: number;
+  expensesTotal: number;
+  net: number;
+  totalOperations: number;
+  totalEncaisse: number;
+}) {
+  const {
+    settings, periodLabel, reportNumber, currentDate,
+    salesTotal, purchasesTotal, expensesTotal, net, totalOperations, totalEncaisse,
+  } = params;
+
+  const [chrome, setChrome] = useState<ChromeHeights | null>(null);
+  const overheadRef = useRef<HTMLDivElement>(null);
+  const sectionTitleRef = useRef<HTMLDivElement>(null);
+  const tableHeaderRowRef = useRef<HTMLTableRowElement>(null);
+  const subtotalRowRef = useRef<HTMLTableRowElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const syntheseRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setChrome(null);
+    let cancelled = false;
+
+    function measure() {
+      if (cancelled) return;
+      if (
+        !overheadRef.current || !sectionTitleRef.current || !tableHeaderRowRef.current ||
+        !subtotalRowRef.current || !footerRef.current || !syntheseRef.current
+      ) {
+        requestAnimationFrame(measure);
+        return;
+      }
+      setChrome({
+        page1Overhead: overheadRef.current.getBoundingClientRect().height,
+        sectionTitle: sectionTitleRef.current.getBoundingClientRect().height,
+        tableHeaderRow: tableHeaderRowRef.current.getBoundingClientRect().height,
+        subtotalRow: subtotalRowRef.current.getBoundingClientRect().height,
+        footerBand: footerRef.current.getBoundingClientRect().height,
+        syntheseBlock: syntheseRef.current.getBoundingClientRect().height,
+      });
+    }
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(() => requestAnimationFrame(measure));
+    } else {
+      requestAnimationFrame(measure);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [settings, periodLabel, reportNumber, currentDate, salesTotal, purchasesTotal, expensesTotal, net, totalOperations, totalEncaisse]);
+
+  const ChromeRenderer = () => (
+    <div style={{ position: "fixed", left: -99999, top: 0 }}>
+      {/* Real header + real summary cards, same width/padding as an actual page */}
+      <div
+        ref={overheadRef}
+        style={{
+          width: "210mm",
+          padding: "10mm 12mm",
+          boxSizing: "border-box",
+          fontFamily: "Inter, 'Helvetica Neue', Arial, sans-serif",
+          fontSize: "10pt",
+          lineHeight: 1.5,
+          overflow: "hidden",
+        }}
+      >
+        <ReportHeader settings={settings} periodLabel={periodLabel} reportNumber={reportNumber} currentDate={currentDate} />
+        <SummaryCards
+          salesTotal={salesTotal}
+          totalEncaisse={totalEncaisse}
+          purchasesTotal={purchasesTotal}
+          expensesTotal={expensesTotal}
+          net={net}
+          salesCount={0}
+          purchasesCount={0}
+          expensesCount={0}
+        />
+      </div>
+
+      {/* Section title block — identical markup to SectionTable's title */}
+      <div
+        style={{
+          width: "186mm",
+          fontFamily: "Inter, 'Helvetica Neue', Arial, sans-serif",
+          fontSize: "10pt",
+          lineHeight: 1.5,
+          overflow: "hidden",
+        }}
+      >
+        <div ref={sectionTitleRef} style={{ marginTop: 20, fontSize: "11pt", fontWeight: 700, marginBottom: 6 }}>
+          Titre d'exemple <span style={{ fontWeight: 400, fontSize: "9pt" }}>(1 entrée)</span>
+        </div>
+      </div>
+
+      {/* Table header row — identical markup to SectionTable's <thead> */}
+      <table style={{ width: "186mm", borderCollapse: "collapse", fontSize: "9.5pt", border: "1px solid #000000" }}>
+        <thead>
+          <tr ref={tableHeaderRowRef} style={{ borderBottom: "1px solid #000000" }}>
+            <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 700, width: "14%", fontSize: "8.5pt" }}>Date</th>
+            <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 700, fontSize: "8.5pt" }}>Label</th>
+            <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 700, width: "15%", fontSize: "8.5pt" }}>N° Réf.</th>
+            <th style={{ textAlign: "right", padding: "6px 8px", fontWeight: 700, width: "18%", fontSize: "8.5pt" }}>Montant</th>
+          </tr>
+        </thead>
+      </table>
+
+      {/* Subtotal row — identical markup to SectionTable's <tfoot> */}
+      <table style={{ width: "186mm", borderCollapse: "collapse", fontSize: "9.5pt" }}>
+        <tfoot>
+          <tr ref={subtotalRowRef} style={{ borderTop: "1px solid #000000" }}>
+            <td colSpan={3} style={{ padding: "6px 8px", fontWeight: 700, textAlign: "right", fontSize: "9.5pt" }}>
+              Sous-total
+            </td>
+            <td style={{ padding: "6px 8px", fontWeight: 700, textAlign: "right", fontSize: "9.5pt" }}>
+              0,000 DT
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {/* Real footer band, real settings */}
+      <div
+        style={{
+          width: "186mm",
+          fontFamily: "Inter, 'Helvetica Neue', Arial, sans-serif",
+          fontSize: "10pt",
+          lineHeight: 1.5,
+          overflow: "hidden",
+        }}
+      >
+        <div ref={footerRef}>
+          <FooterBand settings={settings} pageNumber={1} totalPages={1} />
+        </div>
+      </div>
+
+      {/* Real Synthèse block, with the real final totals */}
+      <div
+        style={{
+          width: "186mm",
+          fontFamily: "Inter, 'Helvetica Neue', Arial, sans-serif",
+          fontSize: "10pt",
+          lineHeight: 1.5,
+          overflow: "hidden",
+        }}
+      >
+        <div ref={syntheseRef}>
+          <SyntheseFinanciere
+            salesTotal={salesTotal}
+            purchasesTotal={purchasesTotal}
+            expensesTotal={expensesTotal}
+            net={net}
+            totalOperations={totalOperations}
+            totalEncaisse={totalEncaisse}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  return { chrome, ChromeRenderer };
+}
+
+// ============================================
 // 7. PAGE BUDGETS
 // ============================================
 const MM_TO_PX = 3.78;
-
-const CHROME_HEIGHTS_MM = {
-  sectionTitle: 16,
-  tableHeaderRow: 28,
-  subtotalRow: 28,
-  footerBand: 72,
-  simpleFooter: 22,
-  syntheseBlock: 120,
-  page1Overhead: 170,
-};
-
 const PAGE_HEIGHT_PX = 297 * MM_TO_PX;
 
-function getPageBudget(isFirstPage: boolean, isLastPage: boolean): number {
-  const footerHeight = isLastPage ? CHROME_HEIGHTS_MM.footerBand : CHROME_HEIGHTS_MM.simpleFooter;
-  const overhead = isFirstPage ? CHROME_HEIGHTS_MM.page1Overhead : 0;
-  const synthese = isLastPage ? CHROME_HEIGHTS_MM.syntheseBlock : 0;
-  
-  return PAGE_HEIGHT_PX - (footerHeight + overhead + synthese) * MM_TO_PX - 20;
+// Budget is built entirely from REAL measured heights now (see
+// useChromeHeights above) instead of guessed constants — the footer is
+// constant on every page, so the only thing that varies is the header +
+// summary-cards overhead on page 1. A small safety margin (a few px) is
+// kept to absorb sub-pixel rounding, nothing more.
+function getPageBudget(isFirstPage: boolean, chrome: ChromeHeights): number {
+  const overhead = isFirstPage ? chrome.page1Overhead : 0;
+  return PAGE_HEIGHT_PX - chrome.footerBand - overhead - 8;
 }
 
 // ============================================
@@ -714,7 +893,8 @@ function getPageBudget(isFirstPage: boolean, isLastPage: boolean): number {
 // ============================================
 function splitContentIntoPages(
   sections: { rows: ReportRow[]; type: string; title: string; amountLabel: string }[],
-  rowHeights: number[]
+  rowHeights: number[],
+  chrome: ChromeHeights
 ): { 
   rows: ReportRow[]; 
   type: string; 
@@ -747,7 +927,6 @@ function splitContentIntoPages(
   let currentHeight = 0;
   let isFirstPage = true;
   let globalRowIndex = 0;
-  let sectionStartedOnPage = false;
 
   for (let s = 0; s < sections.length; s++) {
     const section = sections[s];
@@ -755,9 +934,20 @@ function splitContentIntoPages(
     
     if (sectionRows.length === 0) continue;
 
-    const sectionTitleHeight = CHROME_HEIGHTS_MM.sectionTitle * MM_TO_PX;
-    const sectionHeaderHeight = CHROME_HEIGHTS_MM.tableHeaderRow * MM_TO_PX;
-    const sectionSubtotalHeight = CHROME_HEIGHTS_MM.subtotalRow * MM_TO_PX;
+    // Each section (ventes / achats / dépenses) always starts on a fresh
+    // page — sections are never mixed together on the same page. This is
+    // what keeps "page 1 = ventes, page 2 = achats, page 3 = dépenses"
+    // predictable instead of depending on fragile height math.
+    if (currentPage.length > 0) {
+      pages.push(currentPage);
+      currentPage = [];
+      currentHeight = 0;
+      isFirstPage = false;
+    }
+
+    const sectionTitleHeight = chrome.sectionTitle;
+    const sectionHeaderHeight = chrome.tableHeaderRow;
+    const sectionSubtotalHeight = chrome.subtotalRow;
     
     const sectionTotal = sectionRows.reduce((sum, row) => sum + row.amount, 0);
 
@@ -767,13 +957,10 @@ function splitContentIntoPages(
       sectionRowsHeight += rowHeights[globalRowIndex + i] || 20;
     }
     const totalSectionHeight = sectionTitleHeight + sectionHeaderHeight + sectionRowsHeight + sectionSubtotalHeight;
+    const budget = getPageBudget(isFirstPage, chrome);
 
-    // Check if the section fits on the current page
-    const budget = getPageBudget(isFirstPage, false);
-    
-    // If current page is empty, we can always start a new section
-    if (currentPage.length === 0) {
-      // Start fresh page with this section
+    if (totalSectionHeight <= budget) {
+      // Whole section fits on this (fresh) page
       currentPage.push({
         rows: [...sectionRows],
         type: section.type,
@@ -784,133 +971,86 @@ function splitContentIntoPages(
         isComplete: true,
       });
       currentHeight = totalSectionHeight;
-      sectionStartedOnPage = true;
     } else {
-      // Check if section fits on current page
-      const fitsOnCurrentPage = currentHeight + totalSectionHeight <= budget;
-      
-      if (fitsOnCurrentPage) {
-        // Add section to current page
-        currentPage.push({
-          rows: [...sectionRows],
-          type: section.type,
-          title: section.title,
-          amountLabel: section.amountLabel,
-          isContinuation: false,
-          sectionTotal: sectionTotal,
-          isComplete: true,
-        });
-        currentHeight += totalSectionHeight;
-      } else {
-        // Section doesn't fit - start a new page
-        pages.push(currentPage);
-        currentPage = [];
-        currentHeight = 0;
-        isFirstPage = false;
-        sectionStartedOnPage = false;
-        
-        // Try to fit section on new page
-        const newBudget = getPageBudget(isFirstPage, false);
-        if (totalSectionHeight <= newBudget) {
-          // Section fits on new page
-          currentPage.push({
-            rows: [...sectionRows],
-            type: section.type,
-            title: section.title,
-            amountLabel: section.amountLabel,
-            isContinuation: false,
-            sectionTotal: sectionTotal,
-            isComplete: true,
-          });
-          currentHeight = totalSectionHeight;
-        } else {
-          // Section is too large - split it
-          let remainingRows = [...sectionRows];
-          let rowOffset = 0;
-          let isFirstChunk = true;
-          let isComplete = false;
+      // Section is too large for one page — split it across as many
+      // continuation pages as needed. The subtotal is only ever emitted
+      // on the final chunk, and only that chunk is marked complete.
+      let remainingRows = [...sectionRows];
+      let rowOffset = 0;
+      let isFirstChunk = true;
 
-          while (remainingRows.length > 0) {
-            // Start a new page for each chunk
-            if (!isFirstChunk && currentPage.length > 0) {
-              pages.push(currentPage);
-              currentPage = [];
-              currentHeight = 0;
-              isFirstPage = false;
-            }
+      while (remainingRows.length > 0) {
+        if (!isFirstChunk) {
+          pages.push(currentPage);
+          currentPage = [];
+          currentHeight = 0;
+          isFirstPage = false;
+        }
 
-            const chunkBudget = getPageBudget(isFirstPage, false);
-            let chunkRows: ReportRow[] = [];
-            let chunkHeight = 0;
-            
-            // Add title + header for first chunk only
-            if (isFirstChunk) {
-              chunkHeight += sectionTitleHeight + sectionHeaderHeight;
-            } else {
-              chunkHeight += sectionHeaderHeight;
-            }
+        const chunkBudget = getPageBudget(isFirstPage, chrome);
+        let chunkRows: ReportRow[] = [];
+        let chunkHeight = isFirstChunk
+          ? sectionTitleHeight + sectionHeaderHeight
+          : sectionHeaderHeight;
 
-            // Pack as many rows as possible
-            for (let i = 0; i < remainingRows.length; i++) {
-              const rowHeight = rowHeights[globalRowIndex + rowOffset + i] || 20;
-              // Check if adding this row would exceed budget
-              if (chunkHeight + rowHeight <= chunkBudget) {
-                chunkRows.push(remainingRows[i]);
-                chunkHeight += rowHeight;
-              } else {
-                break;
-              }
-            }
-
-            // If no rows fit, force at least one
-            if (chunkRows.length === 0 && remainingRows.length > 0) {
-              chunkRows.push(remainingRows[0]);
-              chunkHeight += rowHeights[globalRowIndex + rowOffset] || 20;
-            }
-
-            const isLastChunk = chunkRows.length === remainingRows.length;
-            isComplete = isLastChunk;
-
-            // Add subtotal ONLY for the last chunk
-            if (isLastChunk) {
-              chunkHeight += sectionSubtotalHeight;
-            }
-
-            currentPage.push({
-              rows: [...chunkRows],
-              type: section.type,
-              title: isFirstChunk ? section.title : "",
-              amountLabel: section.amountLabel,
-              isContinuation: !isFirstChunk,
-              sectionTotal: sectionTotal,
-              isComplete: isComplete,
-            });
-
-            currentHeight = chunkHeight;
-
-            remainingRows = remainingRows.slice(chunkRows.length);
-            rowOffset += chunkRows.length;
-            isFirstChunk = false;
-
-            // If there are more rows, push current page and continue
-            if (remainingRows.length > 0) {
-              pages.push(currentPage);
-              currentPage = [];
-              currentHeight = 0;
-              isFirstPage = false;
-            }
+        // Pack as many rows as possible
+        for (let i = 0; i < remainingRows.length; i++) {
+          const rowHeight = rowHeights[globalRowIndex + rowOffset + i] || 20;
+          if (chunkHeight + rowHeight <= chunkBudget) {
+            chunkRows.push(remainingRows[i]);
+            chunkHeight += rowHeight;
+          } else {
+            break;
           }
         }
+
+        // If no rows fit, force at least one (avoids an infinite loop)
+        if (chunkRows.length === 0 && remainingRows.length > 0) {
+          chunkRows.push(remainingRows[0]);
+          chunkHeight += rowHeights[globalRowIndex + rowOffset] || 20;
+        }
+
+        const isLastChunk = chunkRows.length === remainingRows.length;
+        if (isLastChunk) {
+          chunkHeight += sectionSubtotalHeight;
+        }
+
+        currentPage.push({
+          rows: [...chunkRows],
+          type: section.type,
+          title: isFirstChunk ? section.title : "",
+          amountLabel: section.amountLabel,
+          isContinuation: !isFirstChunk,
+          sectionTotal: sectionTotal,
+          isComplete: isLastChunk,
+        });
+
+        currentHeight = chunkHeight;
+        remainingRows = remainingRows.slice(chunkRows.length);
+        rowOffset += chunkRows.length;
+        isFirstChunk = false;
       }
     }
 
     globalRowIndex += sectionRows.length;
   }
 
-  // Push the last page if it has content
-  if (currentPage.length > 0) {
-    pages.push(currentPage);
+  // Reserve real room for the Synthèse Financière block, instead of
+  // guessing at split time whether the current page would be "last".
+  // Now that splitting is finished we know for certain — so check whether
+  // it actually fits in what's left of the current (last) page, and if
+  // not, give it a dedicated page of its own instead of letting it spill
+  // over the footer.
+  const syntheseHeight = chrome.syntheseBlock;
+  const finalBudget = getPageBudget(isFirstPage, chrome);
+
+  if (currentPage.length === 0 || currentHeight + syntheseHeight > finalBudget) {
+    if (currentPage.length > 0) {
+      pages.push(currentPage);
+    }
+    currentPage = [];
   }
+  pages.push(currentPage);
 
   // Verify all rows are assigned
   const totalRowsInPages = pages.reduce((sum, page) => sum + page.reduce((s, item) => s + item.rows.length, 0), 0);
@@ -978,6 +1118,18 @@ export const MonthlyReportTemplate = forwardRef<
 
   const allRows = sortedSales.concat(sortedPurchases).concat(sortedExpenses);
   const { heights, RowRenderer } = useRowHeights(allRows);
+  const { chrome, ChromeRenderer } = useChromeHeights({
+    settings,
+    periodLabel,
+    reportNumber,
+    currentDate,
+    salesTotal,
+    purchasesTotal,
+    expensesTotal,
+    net,
+    totalOperations,
+    totalEncaisse,
+  });
 
   const [pageContents, setPageContents] = useState<{ 
     rows: ReportRow[]; 
@@ -991,12 +1143,12 @@ export const MonthlyReportTemplate = forwardRef<
   const [allHeightsReady, setAllHeightsReady] = useState(false);
 
   useEffect(() => {
-    if (heights && heights.length === allRows.length) {
-      const split = splitContentIntoPages(allSections, heights);
+    if (heights && heights.length === allRows.length && chrome) {
+      const split = splitContentIntoPages(allSections, heights, chrome);
       setPageContents(split);
       setAllHeightsReady(true);
     }
-  }, [heights]);
+  }, [heights, chrome]);
 
   const totalPages = pageContents.length || 1;
 
@@ -1073,8 +1225,14 @@ export const MonthlyReportTemplate = forwardRef<
   return (
     <>
       <RowRenderer />
+      <ChromeRenderer />
 
-      <div ref={ref} data-printable-root style={{ position: "relative" }}>
+      <div
+        ref={ref}
+        data-printable-root
+        data-pagination-ready={allHeightsReady ? "true" : "false"}
+        style={{ position: "relative" }}
+      >
         {allHeightsReady && pageContents.length > 0 ? (
           pageContents.map((pageItems, pageIndex) => {
             const isLastPage = pageIndex === pageContents.length - 1;
@@ -1089,7 +1247,6 @@ export const MonthlyReportTemplate = forwardRef<
                 key={pageIndex}
                 pageNumber={pageNumber}
                 totalPages={totalPages}
-                showFooterBand={isLastPage}
                 settings={settings}
               >
                 {isFirstPage && (
@@ -1148,7 +1305,6 @@ export const MonthlyReportTemplate = forwardRef<
           <ReportPage
             pageNumber={1}
             totalPages={1}
-            showFooterBand={true}
             settings={settings}
           >
             <ReportHeader

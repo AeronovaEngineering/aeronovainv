@@ -67,13 +67,27 @@ export function MonthlyReportDialog() {
     const timer = window.setTimeout(async () => {
       if (cancelled || !reportRef.current) return;
       try {
-        // Wait for pagination to settle (rows measured and pages rendered)
+        // Wait for pagination to actually finish — MonthlyReportTemplate
+        // sets data-pagination-ready="true" only once row heights are
+        // measured and the real multi-page split has been computed.
+        // The old check here (`container.children.length > 0`) was true
+        // on the very first render already, because an un-paginated,
+        // single-page fallback mounts immediately — so the PDF capture
+        // was grabbing that naive fallback (everything dumped on one
+        // fixed page, footer included) before pagination ever finished.
+        // That's what caused tables and the footer to overlap.
         const container = reportRef.current;
-        await new Promise((resolve) => {
-          // Check if pagination is ready
+        await new Promise<void>((resolve, reject) => {
+          const start = performance.now();
           const checkReady = () => {
-            if (container.children.length > 0) {
-              resolve(true);
+            if (cancelled) return;
+            if (
+              container.getAttribute("data-pagination-ready") === "true" &&
+              container.children.length > 0
+            ) {
+              resolve();
+            } else if (performance.now() - start > 10000) {
+              reject(new Error("La pagination du rapport n'a pas abouti à temps."));
             } else {
               requestAnimationFrame(checkReady);
             }
