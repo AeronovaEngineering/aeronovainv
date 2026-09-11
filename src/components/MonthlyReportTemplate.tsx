@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect, useRef } from "react";
+import { forwardRef, memo, useState, useEffect, useMemo, useRef } from "react";
 import type { Database } from "@/integrations/supabase/types";
 import { FooterCell, LogoImg } from "@/components/InvoiceTemplate";
 import { formatTND, formatDate } from "@/lib/format";
@@ -1105,18 +1105,48 @@ export const MonthlyReportTemplate = forwardRef<
     minute: "2-digit",
   });
 
-  // Sort each section by date (oldest first)
-  const sortedSales = [...sales].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const sortedPurchases = [...purchases].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const sortedExpenses = [...expenses].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // Sort each section by date (oldest first).
+  //
+  // IMPORTANT: these are memoized on the `sales`/`purchases`/`expenses`
+  // prop arrays. Without this, `.sort()`/`.concat()` create brand-new
+  // array instances on *every* render of this component — and since
+  // `useRowHeights` below restarts its whole measurement effect whenever
+  // its `rows` argument's reference changes, any unrelated re-render of
+  // this component (e.g. a parent re-render caused by React Query
+  // refetching `company_settings` on window focus — the default
+  // behaviour — while the export is in flight) would reset the
+  // measurement mid-flight. Repeated resets can keep the pagination
+  // from ever reaching `data-pagination-ready="true"` inside the 10s
+  // budget, which is what surfaces as "La pagination du rapport n'a pas
+  // abouti à temps." This is far more likely to happen in production
+  // (real users tabbing away while a report exports) than in local dev,
+  // where nobody switches windows mid-test.
+  const sortedSales = useMemo(
+    () => [...sales].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [sales]
+  );
+  const sortedPurchases = useMemo(
+    () => [...purchases].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [purchases]
+  );
+  const sortedExpenses = useMemo(
+    () => [...expenses].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [expenses]
+  );
 
-  const allSections = [
-    { rows: sortedSales, type: "sales", title: "Factures de vente", amountLabel: "Client" },
-    { rows: sortedPurchases, type: "purchases", title: "Factures d'achat", amountLabel: "Fournisseur" },
-    { rows: sortedExpenses, type: "expenses", title: "Dépenses", amountLabel: "Description" },
-  ];
+  const allSections = useMemo(
+    () => [
+      { rows: sortedSales, type: "sales", title: "Factures de vente", amountLabel: "Client" },
+      { rows: sortedPurchases, type: "purchases", title: "Factures d'achat", amountLabel: "Fournisseur" },
+      { rows: sortedExpenses, type: "expenses", title: "Dépenses", amountLabel: "Description" },
+    ],
+    [sortedSales, sortedPurchases, sortedExpenses]
+  );
 
-  const allRows = sortedSales.concat(sortedPurchases).concat(sortedExpenses);
+  const allRows = useMemo(
+    () => sortedSales.concat(sortedPurchases).concat(sortedExpenses),
+    [sortedSales, sortedPurchases, sortedExpenses]
+  );
   const { heights, RowRenderer } = useRowHeights(allRows);
   const { chrome, ChromeRenderer } = useChromeHeights({
     settings,
